@@ -1,0 +1,7 @@
+apply from: "$rootProject.projectDir/shared_build.gradle"
+
+dependencies {
+
+    implementation project(':utils')
+
+}

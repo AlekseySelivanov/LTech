@@ -1,0 +1,96 @@
+package com.example.ltech.presentation.fragments.authentication
+
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.findNavController
+import by.kirich1409.viewbindingdelegate.viewBinding
+import com.example.ltech.R
+import com.example.ltech.databinding.FragmentAuthenticationBinding
+import com.google.android.material.snackbar.Snackbar
+import dagger.hilt.android.AndroidEntryPoint
+import com.example.ltech.utils.LoginState
+import com.example.ltech.utils.changeXtoNumber
+import com.example.ltech.utils.makeToast
+import com.example.ltech.utils.safeNavigate
+
+@AndroidEntryPoint
+class AuthenticationFragment : Fragment(R.layout.fragment_authentication) {
+
+    private val binding by viewBinding(FragmentAuthenticationBinding::bind)
+    private val authenticationViewModel: AuthenticationViewModel by viewModels()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        initClearPhoneFieldButton()
+        setupLoginSuccessStatusObserver()
+        setupEnterButtonListener()
+        setupMaskObserver()
+        Log.d("Articles Worker", "authFragment")
+    }
+
+    private fun setupMaskObserver() {
+        authenticationViewModel.phoneMask.observe(viewLifecycleOwner) { mask ->
+            val editText = binding.telephoneEditText
+            val result = mask?.changeXtoNumber()
+            editText.mask = result
+            editText.hint = mask
+        }
+    }
+
+    private fun setupEnterButtonListener() {
+        val isHasInternetConnection = authenticationViewModel.isHasInternetConnection()
+        val isAirplaneModeOn = authenticationViewModel.isAirplaneModeOn()
+        binding.apply {
+            enterAccountButton.setOnClickListener {
+                if (isHasInternetConnection && !isAirplaneModeOn) {
+                    val phone = telephoneEditText.text.toString().filter { it.isDigit() }
+                    val password = passwordInputText.text.toString()
+                    loadLoginSuccessStatusFromServer(phone, password)
+                } else {
+                    makeToast(getString(R.string.check_internet))
+                }
+            }
+        }
+    }
+
+    private fun setupLoginSuccessStatusObserver() {
+        lifecycleScope.launchWhenCreated {
+            authenticationViewModel.loginState.collect {
+                when (it) {
+                    is LoginState.Success -> {
+                        Snackbar.make(binding.root, "Успешно", Snackbar.LENGTH_LONG).show()
+                        navigateToMainFragment()
+                    }
+                    is LoginState.Error -> {
+                        Snackbar.make(binding.root, it.message, Snackbar.LENGTH_LONG).show()
+                    }
+                    is LoginState.Denied -> {
+                        Snackbar.make(binding.root, "Проверьте правильность ввода данных", Snackbar.LENGTH_LONG).show()
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    private fun loadLoginSuccessStatusFromServer(phone: String, password: String) {
+        authenticationViewModel.login(phone, password)
+    }
+
+    private fun navigateToMainFragment() {
+        val action =
+            AuthenticationFragmentDirections
+                .actionAuthenticationFragmentToDevExam()
+        view?.findNavController()?.safeNavigate(action)
+    }
+
+    private fun initClearPhoneFieldButton() {
+        binding.clearTextIcon.setOnClickListener {
+            binding.telephoneEditText.text?.clear()
+        }
+    }
+}

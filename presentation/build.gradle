@@ -1,0 +1,8 @@
+apply from: "$rootProject.projectDir/shared_build.gradle"
+
+dependencies {
+
+
+
+
+}
